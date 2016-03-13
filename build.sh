@@ -79,6 +79,10 @@ if [ ! -d /app ]; then
 		print_msg "   Downloading $TGZ_URL"
 		curl -sL $TGZ_URL | tar zx -C /src
 		SOURCE="Building $TGZ_URL"
+	elif [ ! -z "$DOCKERFILE_URL" ]; then
+		print_msg "   Downloading $DOCKERFILE_URL"
+		curl -o /src/Dockerfile $DOCKERFILE_URL
+		SOURCE="Building $DOCKERFILE_URL"
 	else
 		print_msg "   ERROR: No application found in /app, and no \$GIT_REPO defined"
 		exit 1
@@ -94,8 +98,8 @@ if [ -d "hooks" ]; then
 	chmod +x hooks/*
 fi
 if [ ! -f Dockerfile ]; then
-	print_msg "   WARNING: no Dockerfile detected! Created one using tutum/buildstep"
-	echo "FROM tutum/buildstep" >> Dockerfile
+	print_msg "   ERROR: no Dockerfile detected!"
+	exit 1
 fi
 
 #
