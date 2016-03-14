@@ -103,7 +103,7 @@ if [ ! -f Dockerfile ]; then
 fi
 
 #
-# (1/3) Build step
+# (1/2) Build step
 #
 print_msg "=> Building repository"
 START_DATE=$(date +"%s")
@@ -119,51 +119,7 @@ DATE_DIFF=$(($END_DATE-$START_DATE))
 BUILD="Image built in $(($DATE_DIFF / 60)) minutes and $(($DATE_DIFF % 60)) seconds"
 
 #
-# (2/3) Test step
-#
-START_DATE=$(date +"%s")
-run_hook pre_test
-if [ -f "hooks/test" ]; then
-	run_hook test
-else
-	TEST="No tests found"
-	shopt -s nullglob
-	for TEST_FILENAME in *{.test.yml,-test.yml}
-	do
-		print_msg "=> Executing tests in $TEST_FILENAME"
-		IMAGES=$(cat ./${TEST_FILENAME} | grep -v "^#" | grep -v "image: *this" | grep "image:" | awk '{print $2}')
-		if [ ! -z "$IMAGES" ]; then
-			echo $IMAGES | xargs -n1 docker pull
-		fi
-
-		PROJECT_NAME=$(echo $HOSTNAME | tr '[:upper:]' '[:lower:]' | sed s/\\.//g | sed s/-//g)
-		docker-compose -f ${TEST_FILENAME} -p $PROJECT_NAME build
-
-		if [ -z "$IMAGE_NAME" ]; then
-			rm -f /root/.dockercfg
-		fi
-
-		docker-compose -f ${TEST_FILENAME} -p $PROJECT_NAME up -d sut
-		docker logs -f ${PROJECT_NAME}_sut_1
-		RET=$(docker wait ${PROJECT_NAME}_sut_1)
-		docker-compose -f ${TEST_FILENAME} -p $PROJECT_NAME kill
-		docker-compose -f ${TEST_FILENAME} -p $PROJECT_NAME rm --force -v
-		if [ "$RET" != "0" ]; then
-			print_msg "   Tests in $TEST_FILENAME FAILED: $RET"
-			exit 1
-		else
-			print_msg "   Tests in $TEST_FILENAME PASSED"
-			unset TEST
-		fi
-	done
-fi
-run_hook post_test
-END_DATE=$(date +"%s")
-DATE_DIFF=$(($END_DATE-$START_DATE))
-TEST=${TEST:-"Tests passed in $(($DATE_DIFF / 60)) minutes and $(($DATE_DIFF % 60)) seconds"}
-
-#
-# (3/3) Push step
+# (2/2) Push step
 #
 START_DATE=$(date +"%s")
 if [ ! -z "$IMAGE_NAME" ]; then
@@ -213,10 +169,9 @@ cat <<EOF
 Build summary
 =============
 
-$DOCKER_USED and docker-compose ${COMPOSE_VERSION}
+$DOCKER_USED
 $SOURCE
 $BUILD
-$TEST
 $PUSH
 
 EOF
